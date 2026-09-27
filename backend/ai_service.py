@@ -80,60 +80,54 @@ async def generate_tryon(
     else:
         product_path = await download_image_to_file(product_image_url, settings.UPLOAD_DIR)
     
-    print(f"[AI] Starting try-on generation via Replicate...")
+    print(f"[AI] Starting free try-on generation via Hugging Face...")
     import sys; sys.stdout.flush()
     print(f"[AI] Profile: {profile_path}")
     print(f"[AI] Product: {product_path}")
     
-    def _run_replicate():
-        """Run the Replicate API call in a thread."""
-        import replicate
+    def _run_gradio():
+        """Run the blocking Gradio API call in a thread."""
+        hf_token = settings.HF_TOKEN if settings.HF_TOKEN else None
+        from gradio_client import Client, handle_file
+        client = Client("fashn-ai/fashn-vton-1.5", token=hf_token)
         
-        replicate_key = settings.REPLICATE_API_TOKEN
-        if not replicate_key:
-            raise Exception("Hugging Face quota exceeded, and no REPLICATE_API_TOKEN found in .env as a fallback.")
-            
-        client = replicate.Client(api_token=replicate_key)
-        
-        # cuuupid/idm-vton model on Replicate
-        input_args = {
-            "crop": False,
-            "seed": 42,
-            "steps": 25,
-            "category": "upper_body",
-            "force_dc": False,
-            "human_image": open(profile_path, "rb"),
-            "garm_img": open(product_path, "rb"),
-            "garment_des": "product"
-        }
-        
-        output = client.run(settings.TRYON_MODEL, input=input_args)
-        # Replicate usually returns a list or a URL string
-        return output
+        result = client.predict(
+            person_image=handle_file(profile_path),
+            garment_image=handle_file(product_path),
+            category="tops",
+            garment_photo_type="flat-lay", 
+            num_timesteps=25,      # Speed & Quota Saving
+            guidance_scale=2.5,
+            seed=-1,
+            segmentation_free=True,
+            api_name="/try_on"
+        )
+        return result
     
     try:
         # Run in thread so we don't block the async event loop
-        output = await asyncio.to_thread(_run_replicate)
+        output = await asyncio.to_thread(_run_gradio)
     except Exception as e:
-        raise Exception(f"AI generation failed: {str(e)}")
+        if "IndexError" in str(e):
+            raise Exception("AI failed to detect a human body in your profile picture. Please upload a clear photo of yourself.")
+        raise
     
-    # Replicate returns a URL (or list of URLs)
-    temp_result_url = output
-    if isinstance(output, list) and len(output) > 0:
-        temp_result_url = output[0]
-        
-    if not temp_result_url:
+    # fashn-vton returns a string path directly or dict depending on gradio version.
+    # We can just extract it gracefully.
+    temp_result_path = output
+    if isinstance(output, dict) and "path" in output:
+        temp_result_path = output["path"]
+    elif isinstance(output, tuple) or isinstance(output, list):
+        temp_result_path = output[0]
+    if not temp_result_path:
         raise Exception("AI did not return an image.")
         
-    # Download the result from Replicate to our local results directory
+    # Move the result to our results directory
     result_filename = f"result_{uuid.uuid4().hex}.png"
     final_result_path = os.path.join(settings.RESULTS_DIR, result_filename)
     
-    # Download it
-    async with httpx.AsyncClient() as client:
-        res = await client.get(temp_result_url)
-        with open(final_result_path, "wb") as f:
-            f.write(res.content)
+    import shutil
+    shutil.copy2(temp_result_path, final_result_path)
     
     # E.g., https://sma-tryon.onrender.com/results/result_abcd.png
     result_url = f"https://sma-tryon.onrender.com/results/{result_filename}"
