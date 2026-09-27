@@ -130,8 +130,8 @@ async def generate_tryon(
     shutil.copy2(temp_result_path, final_result_path)
     
     # Generate the local URL for the frontend
-    # E.g., http://localhost:8000/results/result_abcd.png
-    result_url = f"http://localhost:{settings.PORT}/results/{result_filename}"
+    # E.g., https://sma-tryon.onrender.com/results/result_abcd.png
+    result_url = f"https://sma-tryon.onrender.com/results/{result_filename}"
     
     print(f"[AI] Generation complete: {result_url}")
     sys.stdout.flush()
@@ -189,7 +189,7 @@ async def get_style_advice(result_url: str, product_title: str) -> str:
         prompt = f"You are a professional fashion advisor. Look at this photo of me wearing the '{product_title}'. Does this outfit suit my skin tone and body type? What kind of pants, shoes, or accessories should I pair this with to complete the look? Be concise and friendly."
         
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-3.8-flash",
             contents=[
                 prompt, 
                 types.Part.from_bytes(data=image_bytes, mime_type="image/png")
