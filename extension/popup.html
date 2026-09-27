@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TryOn AI</title>
+    <link rel="stylesheet" href="popup.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app">
+        <!-- ─── Header ──────────────────────────────────── -->
+        <header class="header">
+            <div class="header-left">
+                <img src="icon.png" alt="TryOn AI" class="header-icon">
+                <span class="header-title">TryOn AI</span>
+            </div>
+            <div class="header-right">
+                <div class="status-dot" id="statusDot" title="Backend status"></div>
+            </div>
+        </header>
+
+        <!-- ─── Tab Navigation ──────────────────────────── -->
+        <nav class="tabs">
+            <button class="tab active" data-tab="tryon">
+                <span class="tab-icon">👗</span> Try On
+            </button>
+            <button class="tab" data-tab="profile">
+                <span class="tab-icon">👤</span> Profile
+            </button>
+            <button class="tab" data-tab="history">
+                <span class="tab-icon">🕐</span> History
+            </button>
+        </nav>
+
+        <!-- ─── Tab Content ─────────────────────────────── -->
+        <main class="content">
+
+            <!-- ══ TRY-ON TAB ══ -->
+            <section class="tab-panel active" id="panel-tryon">
+                
+                <!-- Product Detection Card -->
+                <div class="card" id="productCard">
+                    <div class="card-header">
+                        <h2>Detected Product</h2>
+                        <button class="icon-btn" id="refreshProductBtn" title="Re-detect product">🔄</button>
+                    </div>
+
+                    <!-- Loading state -->
+                    <div class="card-body state-loading" id="productLoading">
+                        <div class="shimmer-box"></div>
+                        <div class="shimmer-line"></div>
+                        <div class="shimmer-line short"></div>
+                    </div>
+
+                    <!-- Products found state -->
+                    <div class="card-body state-found hidden" id="productFound">
+                        <p class="select-hint">Select a product from the page to try on:</p>
+                        <div class="product-grid" id="productGrid">
+                            <!-- Populated dynamically by popup.js -->
+                        </div>
+
+                        <!-- Magic Color Swap -->
+                        <div id="colorSwapSection" style="margin-top: 15px; background: rgba(30, 41, 59, 0.5); padding: 10px; border-radius: 8px;">
+                            <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px; font-weight: 600;">Magic Color Swap ✨</div>
+                            <div style="display: flex; gap: 10px; justify-content: center;" id="colorSwatches">
+                                <button class="color-swatch active" data-hue="0" style="width: 25px; height: 25px; border-radius: 50%; border: 2px solid white; cursor: pointer; background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);"></button>
+                                <button class="color-swatch" data-hue="90" style="width: 25px; height: 25px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; background: #22c55e;"></button>
+                                <button class="color-swatch" data-hue="180" style="width: 25px; height: 25px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; background: #3b82f6;"></button>
+                                <button class="color-swatch" data-hue="270" style="width: 25px; height: 25px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; background: #a855f7;"></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- No product state -->
+                    <div class="card-body state-empty hidden" id="noProduct">
+                        <div class="empty-icon">🛍️</div>
+                        <p>No product detected on this page.</p>
+                        <span class="hint">Visit a shopping website like Amazon, Myntra, or Flipkart.</span>
+                    </div>
+                </div>
+
+                <!-- Size Recommendation -->
+                <div id="sizeRecommendation" class="hidden" style="margin-bottom: 10px; text-align: center; color: #10b981; font-weight: 600; font-size: 0.95rem; background: rgba(16, 185, 129, 0.1); padding: 8px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                    Based on your profile, recommended size: M
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons" style="display: flex; gap: 10px;">
+                    <button id="tryOnBtn" class="btn-tryon" disabled style="flex: 1;">
+                        <span class="btn-tryon-icon">✨</span>
+                        <span class="btn-tryon-text">Virtual Try-On</span>
+                    </button>
+                    <button id="arTryOnBtn" class="btn-tryon" disabled style="flex: 1; background: linear-gradient(135deg, #a855f7, #ec4899);">
+                        <span class="btn-tryon-icon">🕶️</span>
+                        <span class="btn-tryon-text">AR Mirror</span>
+                    </button>
+                </div>
+
+                <!-- Result Card -->
+                <div class="card hidden" id="resultCard">
+                    <div class="card-header">
+                        <h2>Your Try-On Result</h2>
+                        <button class="icon-btn hidden" id="downloadBtn" title="Download image">💾</button>
+                    </div>
+                    
+                    <!-- Processing state -->
+                    <div class="card-body" id="processingState">
+                        <div class="ai-loader">
+                            <div class="ai-loader-ring"></div>
+                            <div class="ai-loader-ring"></div>
+                            <div class="ai-loader-ring"></div>
+                            <span class="ai-loader-text">AI is working its magic...</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    <p class="processing-hint">This usually takes 1-4 minutes (longer on first run)</p>
+                    </div>
+                    
+                    <!-- Result image -->
+                    <div class="card-body hidden" id="resultState">
+                        <img id="resultImage" src="" alt="Try-On Result" class="result-image">
+                        <button id="aiStylistBtn" class="btn-tryon" style="margin-top: 15px; width: 100%; background: linear-gradient(135deg, #10b981, #3b82f6); font-size: 0.9rem;">
+                            <span class="btn-tryon-icon">🤖</span>
+                            <span class="btn-tryon-text">Ask AI Stylist (Gemini)</span>
+                        </button>
+                        <div id="aiStylistResult" class="hidden" style="margin-top: 15px; padding: 12px; background: rgba(16, 185, 129, 0.1); border-left: 4px solid #10b981; border-radius: 4px; font-size: 0.85rem; line-height: 1.5; color: #e2e8f0; max-height: 200px; overflow-y: auto;">
+                            <!-- Gemini Response goes here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ══ PROFILE TAB ══ -->
+            <section class="tab-panel" id="panel-profile">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Your Wardrobe (Poses)</h2>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-desc">Upload different poses (front, side) and click one to set it as active.</p>
+                        
+                        <!-- Poses Grid -->
+                        <div class="product-grid" id="posesGrid" style="margin-bottom: 12px; min-height: 90px;">
+                            <!-- Populated dynamically -->
+                        </div>
+
+                        <div class="profile-upload-area" id="uploadArea">
+                            <input type="file" id="profileInput" accept="image/*" hidden>
+                            
+                            <!-- Upload Button state -->
+                            <div class="upload-placeholder" id="uploadPlaceholder">
+                                <div class="upload-icon">➕</div>
+                                <span>Add New Pose</span>
+                                <span class="hint">JPG or PNG, full-body</span>
+                            </div>
+                        </div>
+
+                        <div class="metrics-section" style="margin-top: 20px; background: rgba(30, 41, 59, 0.5); padding: 15px; border-radius: 8px;">
+                            <h3 style="margin-top: 0; font-size: 0.9rem; color: #e2e8f0;">Body Metrics (For Size Recommendation)</h3>
+                            <div style="display: flex; gap: 10px;">
+                                <div style="flex: 1;">
+                                    <label style="font-size: 0.8rem; color: #94a3b8;">Height (cm)</label>
+                                    <input type="number" id="userHeight" placeholder="175" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #334155; background: #0f172a; color: white;">
+                                </div>
+                                <div style="flex: 1;">
+                                    <label style="font-size: 0.8rem; color: #94a3b8;">Weight (kg)</label>
+                                    <input type="number" id="userWeight" placeholder="70" style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #334155; background: #0f172a; color: white;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tips card -->
+                <div class="card tips-card">
+                    <div class="card-header">
+                        <h2>Tips for Best Results</h2>
+                    </div>
+                    <div class="card-body">
+                        <ul class="tips-list">
+                            <li>📸 Use a well-lit, front-facing photo</li>
+                            <li>🧍 Stand straight with arms at your sides</li>
+                            <li>👕 Wear fitted, plain clothing</li>
+                            <li>🎯 Ensure the full body is visible</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ══ HISTORY TAB ══ -->
+            <section class="tab-panel" id="panel-history">
+                <div class="card">
+                    <div class="card-header" style="justify-content: space-between; align-items: center; display: flex;">
+                        <h2 style="margin:0;">Virtual Closet</h2>
+                        <button id="compareBtn" class="btn-secondary hidden" style="padding: 4px 10px; font-size: 0.8rem; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer;">Compare (2)</button>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-desc" style="margin-bottom: 10px; font-size: 0.85rem;">Select exactly two items to compare them side-by-side.</p>
+                        <div id="historyList" class="history-list">
+                            <div class="empty-state" id="historyEmpty">
+                                <div class="empty-icon">✨</div>
+                                <p>No try-ons yet.</p>
+                                <span class="hint">Go to a product page and click Try On!</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- COMPARE MODAL -->
+    <div id="compareModal" class="hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.95); z-index: 2000; display: flex; flex-direction: column;">
+        <div style="padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155;">
+            <h2 style="margin: 0; font-size: 1.1rem; color: white;">Side-by-Side Comparison</h2>
+            <button id="closeCompareBtn" style="background: none; border: none; color: #94a3b8; font-size: 1.8rem; cursor: pointer; padding: 0;">&times;</button>
+        </div>
+        <div style="flex: 1; display: flex; padding: 10px; gap: 10px; overflow: hidden; justify-content: center; align-items: center;">
+            <img id="compareImg1" src="" style="max-width: 48%; max-height: 100%; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+            <img id="compareImg2" src="" style="max-width: 48%; max-height: 100%; object-fit: contain; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
+        </div>
+    </div>
+    <script src="popup.js"></script>
+</body>
+</html>

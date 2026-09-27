@@ -1,0 +1,19 @@
+# Backend
+backend/.env
+backend/__pycache__/
+backend/*.pyc
+backend/uploads/
+backend/results/
+backend/venv/
+backend/.venv/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Extra
+reference/
