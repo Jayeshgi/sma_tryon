@@ -96,7 +96,7 @@ async def generate_tryon(
             garment_image=handle_file(product_path),
             category="tops",
             garment_photo_type="flat-lay", 
-            num_timesteps=25,      # Speed & Quota Saving
+            num_timesteps=50,      # MAX QUALITY
             guidance_scale=2.5,
             seed=-1,
             segmentation_free=True,
